@@ -1526,6 +1526,20 @@ else:
         "Frontend static files mount disabled (ENABLE_BACKEND_WEB=false)",
     )
 
+    @app.get("/", include_in_schema=False)
+    async def index_status():
+        return {
+            "status": "online",
+            "service": "PESU Attendance Tracker API & MCP Server",
+            "mcp_endpoint": "/api/mcp",
+            "endpoints": {
+                "attendance": "POST /api/attendance",
+                "semesters": "POST /api/semesters",
+                "mcp": "POST /api/mcp",
+                "healthcheck": "GET /api/healthcheck",
+            },
+        }
+
 
 def run(argv: list | None = None) -> None:
     """Run the application. This is also used as the package console entrypoint (scripts: attend)."""
