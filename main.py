@@ -984,9 +984,20 @@ def _format_attendance_data(
                 f"Normalized 'NA' total_classes for subject {subject_code}"
             )
 
+        def resolve_subject_name(code: str) -> str:
+            if code in subject_mapping:
+                return subject_mapping[code]
+            m = re.match(r"^UE\d{2}([A-Z].*)$", code)
+            if m:
+                suffix = m.group(1)
+                for k, v in subject_mapping.items():
+                    if k.startswith("UE") and k[4:] == suffix:
+                        return v
+            return code
+
         formatted_attendance.append(
             {
-                "subject": subject_mapping.get(subject_code, subject_code),
+                "subject": resolve_subject_name(subject_code),
                 "course_name": course_name,
                 "total_classes": total_classes,
                 "percentage": percentage,
