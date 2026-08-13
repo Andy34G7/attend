@@ -1,8 +1,31 @@
 {
+  "outputDirectory": "frontend/web",
+  "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/(.*)",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/api",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/mcp/(.*)",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/mcp",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/healthcheck",
       "destination": "/api/index"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "frontend/web/**"
+    }
+  }
 }

@@ -15,6 +15,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, quote, urlencode
 from fastapi import FastAPI, APIRouter, HTTPException, status, Body
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.gzip import GZipMiddleware
@@ -1063,10 +1064,18 @@ app = FastAPI(
     description="Fetch and analyze student attendance data from PESUAcademy",
     version="1.0.0",
 )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 router = APIRouter()
 
 
+@app.get("/healthcheck")
 @router.get("/healthcheck")
 async def healthcheck() -> Dict[str, Any]:
     return APIResponse.success(
