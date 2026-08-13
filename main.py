@@ -1026,14 +1026,32 @@ def _format_attendance_data(
 # FASTAPI APPLICATION SETUP
 # ============================================================================
 
-# Initialize configuration and logger
+# Initialize configuration and logger with safe fallback
 try:
     mappings = load_mappings_config()
-    settings = load_app_settings()
-    app_logger = setup_logger()
+except Exception:
+    mappings = MappingsConfig({})
 
-    # Small helper to emit semantic, machine-parseable log keys along with human-friendly messages
-    def app_log(key: str, message: str | None = None, level: str = "info") -> None:
+try:
+    settings = load_app_settings()
+except Exception:
+    class DefaultSettings:
+        PORT = 10000
+        LOG_LEVEL = "INFO"
+        DEBUG = False
+        REQUEST_TIMEOUT_SECONDS = 10
+        ENABLE_BACKEND_API = True
+        ENABLE_BACKEND_WEB = True
+        ENABLE_BACKEND_MCP = True
+    settings = DefaultSettings()
+
+try:
+    app_logger = setup_logger()
+except Exception:
+    app_logger = logging.getLogger("attend")
+
+def app_log(key: str, message: str | None = None, level: str = "info") -> None:
+    try:
         msg = f"[{key}] {message or key}"
         if level == "debug":
             app_logger.debug(msg)
@@ -1043,10 +1061,8 @@ try:
             app_logger.error(msg)
         else:
             app_logger.info(msg)
-
-except ConfigurationError as e:
-    # Re-raise with additional context for easier debugging
-    raise ConfigurationError(f"Failed to initialize configuration: {e}") from e
+    except Exception:
+        pass
 
 # Initialize FastAPI app and router
 app = FastAPI(
