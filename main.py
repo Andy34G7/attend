@@ -11,10 +11,6 @@ Examples:
     export ENABLE_BACKEND_WEB=true
     uv run main.py
 """
-import colorama
-from colorama import Fore, Style
-
-import uvicorn
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, quote, urlencode
@@ -179,8 +175,13 @@ def load_app_settings() -> AppSettings:
 
 def setup_logger(name=None, level=None, format_str=None):
     """Set up a logger with console output."""
-    # Initialize colorama for colored output
-    colorama.init()
+    try:
+        import colorama
+        from colorama import Fore, Style
+        colorama.init()
+        has_color = True
+    except Exception:
+        has_color = False
 
     log_level = os.getenv("LOG_LEVEL", "INFO").upper()
     default_format = "%(levelname)s: %(message)s"
@@ -195,6 +196,8 @@ def setup_logger(name=None, level=None, format_str=None):
     # Colored formatter
     class ColoredFormatter(logging.Formatter):
         def format(self, record):
+            if not has_color:
+                return super().format(record)
             if record.levelno == logging.DEBUG:
                 color = Fore.CYAN
             elif record.levelno == logging.INFO:
@@ -1500,6 +1503,7 @@ else:
 def run(argv: list | None = None) -> None:
     """Run the application. This is also used as the package console entrypoint (scripts: attend)."""
     import argparse
+    import uvicorn
 
     parser = argparse.ArgumentParser()
     args = parser.parse_args(argv)
