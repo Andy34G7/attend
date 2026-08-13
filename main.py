@@ -1511,13 +1511,23 @@ if settings.ENABLE_BACKEND_MCP:
     app.include_router(mcp_router, prefix="/mcp", tags=["MCP"])
 
 # Mount static frontend at root LAST so it does not intercept API or MCP routes
-if settings.ENABLE_BACKEND_WEB:
-    app.mount("/", StaticFiles(directory="frontend/web", html=True), name="frontend")
+repo_root = Path(__file__).resolve().parent
+web_dir = repo_root / "frontend" / "web"
+
+if settings.ENABLE_BACKEND_WEB and web_dir.exists():
+    app.mount("/", StaticFiles(directory=str(web_dir), html=True), name="frontend")
 else:
-    app_log(
-        "config.frontend_disabled",
-        "Frontend static files mount disabled (ENABLE_BACKEND_WEB=false)",
-    )
+    if not web_dir.exists():
+        app_log(
+            "config.web_dir_missing",
+            f"Frontend static directory not found at {web_dir}",
+            "warning",
+        )
+    else:
+        app_log(
+            "config.frontend_disabled",
+            "Frontend static files mount disabled (ENABLE_BACKEND_WEB=false)",
+        )
 
     @app.get("/", include_in_schema=False)
     async def index_status():
