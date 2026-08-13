@@ -1233,15 +1233,6 @@ async def serve_i_js():
     )
     return response
 
-
-if settings.ENABLE_BACKEND_WEB:
-    app.mount("/", StaticFiles(directory="frontend/web", html=True), name="frontend")
-else:
-    app_log(
-        "config.frontend_disabled",
-        "Frontend static files mount disabled (ENABLE_BACKEND_WEB=false)",
-    )
-
 # ============================================================================
 # MCP (MODEL CONTEXT PROTOCOL) SERVER ROUTES
 # ============================================================================
@@ -1495,6 +1486,15 @@ async def handle_mcp_jsonrpc(request: dict = Body(...)):
 if settings.ENABLE_BACKEND_MCP:
     app.include_router(mcp_router, prefix="/api/mcp", tags=["MCP"])
     app.include_router(mcp_router, prefix="/mcp", tags=["MCP"])
+
+# Mount static frontend at root LAST so it does not intercept API or MCP routes
+if settings.ENABLE_BACKEND_WEB:
+    app.mount("/", StaticFiles(directory="frontend/web", html=True), name="frontend")
+else:
+    app_log(
+        "config.frontend_disabled",
+        "Frontend static files mount disabled (ENABLE_BACKEND_WEB=false)",
+    )
 
 
 def run(argv: list | None = None) -> None:
