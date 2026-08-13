@@ -998,7 +998,7 @@ async function fetchAttendance(srn, password, batchId = null, background = false
 
         const response = await fetch('/api/attendance', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' }, body: JSON.stringify({ username: srn, password: password, batch_id: batchId }) });
 
-        if (!response.ok) { const errorData = await response.json(); const errorMessage = errorData.error?.details || errorData.message || `HTTP error! status: ${response.status}`; throw new Error(errorMessage); }
+        if (!response.ok) { const errorData = await response.json().catch(() => ({})); const errorMessage = errorData.error?.details || errorData.detail?.error?.details || errorData.message || errorData.detail?.message || `HTTP error! status: ${response.status}`; throw new Error(errorMessage); }
 
         const data = await response.json();
         if (!data.success) { throw new Error(data.error?.details || data.message || "Unknown error from server"); }
@@ -1099,7 +1099,7 @@ async function fetchSemesters(srn, password) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: srn, password: password })
     });
-    if (!resp.ok) throw new Error(`Failed to fetch semesters: ${resp.status}`);
+    if (!resp.ok) { const errorData = await resp.json().catch(() => ({})); const errorMessage = errorData.error?.details || errorData.detail?.error?.details || errorData.message || errorData.detail?.message || `Failed to fetch semesters: ${resp.status}`; throw new Error(errorMessage); }
     const data = await resp.json();
     if (!data.success) throw new Error(data.error?.details || data.message);
     return data.data.semesters;

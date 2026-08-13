@@ -247,7 +247,10 @@ class PESUAttendanceScraper:
         # Provide browser-like defaults so the site responds with the same CSRF & cookies
         self.session.headers.update(
             {
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:153.0) Gecko/20100101 Firefox/153.0",
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Sec-GPC": "1",
             }
         )
         self.username = username
@@ -579,7 +582,7 @@ class PESUAttendanceScraper:
         # Make a single best-effort preparatory request (semesters); avoid the heavier admin endpoint to reduce requests
         try:
             r_sem = self.session.get(
-                f"{self.BASE_URL}/a/studentProfilePESU/getStudentSemestersPESU",
+                f"{self.BASE_URL}/s/studentProfile/getStudentSemestersPESU",
                 params={"_": int(time.time() * 1000)},
                 headers=headers,
                 timeout=15,
@@ -598,12 +601,14 @@ class PESUAttendanceScraper:
         the <option> tags (e.g., batchClassId values). Returns None if nothing
         can be discovered.
         """
-        url = f"{self.BASE_URL}/a/studentProfilePESU/getStudentSemestersPESU"
+        url = f"{self.BASE_URL}/s/studentProfile/getStudentSemestersPESU"
         headers = {
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:153.0) Gecko/20100101 Firefox/153.0",
             "X-Requested-With": "XMLHttpRequest",
-            "X-CSRF-Token": csrf_token,
+            "X-CSRF-Token": csrf_token or "",
             "Content-Type": "application/x-www-form-urlencoded",
             "Referer": f"{self.BASE_URL}/s/studentProfilePESU",
+            "Sec-GPC": "1",
         }
         try:
             resp = self.session.get(
@@ -658,9 +663,9 @@ class PESUAttendanceScraper:
                     app_logger.debug(f"Could not parse as JSON: {e}")
             app_logger.debug(f"Available semesters: {texts}")
             return (values if values else None, texts if texts else None)
-        except requests.RequestException as e:
+        except Exception as e:
             app_logger.debug(f"Failed to fetch semester batch ids: {e}")
-            return None
+            return None, None
 
     def scrape_attendance_data(self) -> Optional[List[List[str]]]:
         app_logger.debug(
@@ -740,9 +745,11 @@ class PESUAttendanceScraper:
 
         headers = {
             "X-Requested-With": "XMLHttpRequest",
-            "X-CSRF-Token": csrf_token,
+            "X-CSRF-Token": csrf_token or "",
             "Content-Type": "application/x-www-form-urlencoded",
+            "Origin": "https://www.pesuacademy.com",
             "Referer": f"{self.BASE_URL}/s/studentProfilePESU",
+            "Sec-GPC": "1",
         }
 
         try:
@@ -785,7 +792,7 @@ class PESUAttendanceScraper:
 
     def _parse_attendance_table(self, html_content: str) -> Optional[List[List[str]]]:
         soup = BeautifulSoup(html_content, "html.parser")
-        attendance_table = soup.find("table", {"class": "table"})
+        attendance_table = soup.find("table", {"class": "table"}) or soup.find("table")
 
         if not attendance_table:
             app_log(
@@ -796,17 +803,23 @@ class PESUAttendanceScraper:
             return None
 
         table_body = attendance_table.find("tbody")  # type: ignore
-        if not table_body:
+        rows = (
+            table_body.find_all("tr")
+            if table_body
+            else attendance_table.find_all("tr")
+        )
+
+        if not rows:
             app_log(
-                "scrape.no_table_body",
-                "No table body found in attendance table",
+                "scrape.no_table_rows",
+                "No table rows found in attendance table",
                 "warning",
             )
             return None
 
         attendance_records = []
 
-        for row in table_body.find_all("tr"):  # type: ignore
+        for row in rows:
             row_data = self._extract_row_data(row)
 
             if row_data and self._is_valid_attendance_record(row_data):
@@ -1043,7 +1056,7 @@ async def get_attendance(request: dict = Body(...)) -> dict:
                 code="missing_credentials",
                 status_code=400,
             )
-            raise HTTPException(status_code=status_code, detail=response)
+            return JSONResponse(content=response, status_code=status_code)
 
         result = await process_attendance_task(username, password, batch_id)
 
@@ -1061,7 +1074,7 @@ async def get_attendance(request: dict = Body(...)) -> dict:
             code="config_error",
             status_code=500,
         )
-        raise HTTPException(status_code=status_code, detail=response)
+        return JSONResponse(content=response, status_code=status_code)
 
     except AuthenticationError as error:
         app_log("auth.failed", f"Authentication failed: {error}", "warning")
@@ -1071,7 +1084,7 @@ async def get_attendance(request: dict = Body(...)) -> dict:
             code="auth_failed",
             status_code=401,
         )
-        raise HTTPException(status_code=status_code, detail=response)
+        return JSONResponse(content=response, status_code=status_code)
 
     except AttendanceScrapingError as error:
         app_log("error.scraping", f"Scraping error: {error}", "error")
@@ -1081,7 +1094,7 @@ async def get_attendance(request: dict = Body(...)) -> dict:
             code="scraping_failed",
             status_code=500,
         )
-        raise HTTPException(status_code=status_code, detail=response)
+        return JSONResponse(content=response, status_code=status_code)
 
     except Exception as error:
         app_log("error.unexpected", f"Unexpected error: {error}", "error")
@@ -1091,7 +1104,7 @@ async def get_attendance(request: dict = Body(...)) -> dict:
             code="internal_error",
             status_code=500,
         )
-        raise HTTPException(status_code=status_code, detail=response)
+        return JSONResponse(content=response, status_code=status_code)
 
 
 @router.post("/semesters", include_in_schema=True)
@@ -1106,15 +1119,25 @@ async def get_semesters(request: dict = Body(...)) -> dict:
                 code="missing_credentials",
                 status_code=400,
             )
-            raise HTTPException(status_code=status_code, detail=response)
+            return JSONResponse(content=response, status_code=status_code)
 
         # Create scraper and login to get semesters
         scraper = PESUAttendanceScraper(username, password)
         try:
             scraper.login()
-            batch_ids, texts = scraper._fetch_semester_batch_ids(
+            res = scraper._fetch_semester_batch_ids(
                 scraper._prepare_profile_context()
             )
+            if not res or not res[1]:
+                response, status_code = APIResponse.error(
+                    error_type="SemesterError",
+                    details="No semester options found",
+                    code="semesters_not_found",
+                    status_code=404,
+                )
+                return JSONResponse(content=response, status_code=status_code)
+
+            batch_ids, texts = res
             return APIResponse.success(
                 data={"semesters": texts},
                 code="semesters_retrieved",
@@ -1135,7 +1158,7 @@ async def get_semesters(request: dict = Body(...)) -> dict:
             code="semesters_failed",
             status_code=500,
         )
-        raise HTTPException(status_code=status_code, detail=response)
+        return JSONResponse(content=response, status_code=status_code)
 
 
 # Include API routes and mount static files
