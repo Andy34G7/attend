@@ -130,22 +130,15 @@ class AppSettings:
         except ValueError:
             self.REQUEST_TIMEOUT_SECONDS = 10
 
-        # Backend feature toggles
-        self.ENABLE_BACKEND_API = str(os.getenv("ENABLE_BACKEND_API", "true")).lower() in (
-            "1",
-            "true",
-            "yes",
-        )
-        self.ENABLE_BACKEND_WEB = str(os.getenv("ENABLE_BACKEND_WEB", "true")).lower() in (
-            "1",
-            "true",
-            "yes",
-        )
-        self.ENABLE_BACKEND_MCP = str(os.getenv("ENABLE_BACKEND_MCP", "true")).lower() in (
-            "1",
-            "true",
-            "yes",
-        )
+        # Backend feature toggles (all default to True)
+        api_env = os.getenv("ENABLE_BACKEND_API")
+        self.ENABLE_BACKEND_API = True if api_env is None or str(api_env).strip() == "" else str(api_env).strip().lower() not in ("0", "false", "no")
+
+        web_env = os.getenv("ENABLE_BACKEND_WEB")
+        self.ENABLE_BACKEND_WEB = True if web_env is None or str(web_env).strip() == "" else str(web_env).strip().lower() not in ("0", "false", "no")
+
+        mcp_env = os.getenv("ENABLE_BACKEND_MCP")
+        self.ENABLE_BACKEND_MCP = True if mcp_env is None or str(mcp_env).strip() == "" else str(mcp_env).strip().lower() not in ("0", "false", "no")
 
 
 def load_mappings_config() -> MappingsConfig:
