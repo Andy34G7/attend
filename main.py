@@ -115,22 +115,33 @@ class AppSettings:
         except Exception:
             pass
 
-        self.PORT = int(os.getenv("PORT", 10000))
-        self.LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-        self.DEBUG = os.getenv("DEBUG", "False").lower() in ("1", "true", "yes")
-        self.REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", 5))
+        port_raw = str(os.getenv("PORT", "")).strip()
+        try:
+            self.PORT = int(port_raw) if port_raw else 10000
+        except ValueError:
+            self.PORT = 10000
+
+        self.LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO") or "INFO"
+        self.DEBUG = str(os.getenv("DEBUG", "False")).lower() in ("1", "true", "yes")
+
+        timeout_raw = str(os.getenv("REQUEST_TIMEOUT_SECONDS", "")).strip()
+        try:
+            self.REQUEST_TIMEOUT_SECONDS = int(timeout_raw) if timeout_raw else 10
+        except ValueError:
+            self.REQUEST_TIMEOUT_SECONDS = 10
+
         # Backend feature toggles
-        self.ENABLE_BACKEND_API = os.getenv("ENABLE_BACKEND_API", "true").lower() in (
+        self.ENABLE_BACKEND_API = str(os.getenv("ENABLE_BACKEND_API", "true")).lower() in (
             "1",
             "true",
             "yes",
         )
-        self.ENABLE_BACKEND_WEB = os.getenv("ENABLE_BACKEND_WEB", "true").lower() in (
+        self.ENABLE_BACKEND_WEB = str(os.getenv("ENABLE_BACKEND_WEB", "true")).lower() in (
             "1",
             "true",
             "yes",
         )
-        self.ENABLE_BACKEND_MCP = os.getenv("ENABLE_BACKEND_MCP", "true").lower() in (
+        self.ENABLE_BACKEND_MCP = str(os.getenv("ENABLE_BACKEND_MCP", "true")).lower() in (
             "1",
             "true",
             "yes",
