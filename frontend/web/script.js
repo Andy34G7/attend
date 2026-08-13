@@ -640,16 +640,16 @@ function generateAttendanceChart(attendanceData, customThreshold = null) {
                 `${subject}\n${attendedData[index]}/${attendedData[index] + skippedData[index]}`
             ),
             datasets: [
-                { label: 'Attended', data: attendedData, backgroundColor: 'rgb(34, 197, 94)', borderColor: 'rgb(34, 197, 94)', borderWidth: 0 },
-                { label: 'Skipped', data: skippedData, backgroundColor: 'rgb(239, 68, 68)', borderColor: 'rgb(239, 68, 68)', borderWidth: 0 },
-                { label: `${threshold}% Threshold`, data: thresholdData, type: 'line', backgroundColor: 'rgba(250, 204, 21, 0.2)', borderColor: 'rgb(250, 204, 21)', borderWidth: 3, fill: false, pointRadius: 5, pointHoverRadius: 7, pointBackgroundColor: 'rgb(250, 204, 21)', pointBorderColor: 'rgb(250, 204, 21)', tension: 0 }
+                { label: 'Attended', data: attendedData, backgroundColor: '#9ece6a', borderColor: '#9ece6a', borderWidth: 0, borderRadius: 4 },
+                { label: 'Skipped', data: skippedData, backgroundColor: '#f7768e', borderColor: '#f7768e', borderWidth: 0, borderRadius: 4 },
+                { label: `${threshold}% Threshold`, data: thresholdData, type: 'line', backgroundColor: 'rgba(122, 162, 247, 0.2)', borderColor: '#7aa2f7', borderWidth: 3, fill: false, pointRadius: 5, pointHoverRadius: 7, pointBackgroundColor: '#7aa2f7', pointBorderColor: '#7aa2f7', tension: 0 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { title: { display: false }, legend: { display: true, position: 'bottom', align: 'center', labels: { color: '#ffffff', padding: 12, font: { size: 13, weight: '500' }, usePointStyle: true, boxWidth: 12 } } },
-            scales: { x: { stacked: true, ticks: { color: '#a1a1aa', font: { size: 11 } }, grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false } }, y: { stacked: true, beginAtZero: true, ticks: { color: '#a1a1aa', font: { size: 11 } }, grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false } } },
+            plugins: { title: { display: false }, legend: { display: true, position: 'bottom', align: 'center', labels: { color: '#c0caf5', padding: 12, font: { size: 13, weight: '600' }, usePointStyle: true, boxWidth: 12 } } },
+            scales: { x: { stacked: true, ticks: { color: '#a9b1d6', font: { size: 11 } }, grid: { color: 'rgba(41, 46, 66, 0.6)', drawBorder: false } }, y: { stacked: true, beginAtZero: true, ticks: { color: '#a9b1d6', font: { size: 11 } }, grid: { color: 'rgba(41, 46, 66, 0.6)', drawBorder: false } } },
             interaction: { intersect: false, mode: 'index' }
         }
     });

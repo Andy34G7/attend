@@ -1,25 +1,32 @@
 :root {
-    /* Color Palette - Dark mode only */
-    --primary: #ffffff;
-    --primary-light: #f0f0f0;
-    --primary-dark: #ffffff;
-    --secondary: #cccccc;
-    --success: #ffffff;
-    --warning: #ffffff;
-    --danger: #ffffff;
-    --purple: #ffffff;
+    /* Color Palette - Tokyo Night Theme */
+    --primary: #7aa2f7;         /* Tokyo Night Electric Blue */
+    --primary-light: #89ddff;   /* Tokyo Night Cyan */
+    --primary-dark: #3d59a1;    /* Deep Blue */
+    --secondary: #bb9af7;      /* Tokyo Night Lavender / Purple */
+    --success: #9ece6a;        /* Tokyo Night Soft Green */
+    --warning: #e0af68;        /* Tokyo Night Warm Gold / Yellow */
+    --danger: #f7768e;         /* Tokyo Night Soft Red */
+    --purple: #9d7cd8;         /* Accent Magenta */
+    --teal: #7dcfff;           /* Highlight Teal */
 
-    /* Dark Theme */
-    --bg-primary: #000000;
-    --bg-secondary: #111111;
-    --bg-tertiary: #1a1a1a;
-    --bg-card: #0a0a0a;
-    --text-primary: #ffffff;
-    --text-secondary: #cccccc;
-    --text-tertiary: #999999;
-    --text-muted: #666666;
-    --border: #333333;
-    --border-light: #1a1a1a;
+    /* Tokyo Night Dark Theme Surfaces */
+    --bg-primary: #1a1b26;     /* Main background (Tokyo Night Base) */
+    --bg-secondary: #24283b;   /* Surface / Card background */
+    --bg-tertiary: #1f2335;    /* Elevated Surface */
+    --bg-card: #24283b;        /* Material Card background */
+    --bg-card-hover: #292e42;  /* Material card hover state */
+
+    /* Typography / Text colors */
+    --text-primary: #c0caf5;   /* Crisp Tokyo Night Light Text */
+    --text-secondary: #a9b1d6; /* Subtitle / Secondary Text */
+    --text-tertiary: #787c99;  /* Muted Text */
+    --text-muted: #565f89;     /* Disabled / Hints */
+
+    /* Material Borders & Dividers */
+    --border: #292e42;
+    --border-light: #1f2335;
+    --border-accent: rgba(122, 162, 247, 0.3);
 
     /* Spacing */
     --space-1: 0.25rem;
@@ -32,15 +39,22 @@
     --space-10: 2.5rem;
     --space-12: 3rem;
 
-    /* Border Radius - Sharp corners for modern look */
-    --radius-sm: 0rem;
-    --radius-md: 0rem;
-    --radius-lg: 0rem;
-    --radius-xl: 0rem;
+    /* Material Rounded Corners */
+    --radius-sm: 0.5rem;       /* 8px */
+    --radius-md: 0.75rem;      /* 12px - Material 3 component radius */
+    --radius-lg: 1rem;         /* 16px - Material surface radius */
+    --radius-xl: 1.5rem;       /* 24px - Large container radius */
+    --radius-full: 9999px;     /* Material Pills & Badges */
 
-    /* Transitions */
-    --transition: all 0.2s ease;
-    --transition-fast: all 0.1s ease;
+    /* Material Elevation Shadows */
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.15);
+    --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.45), 0 4px 10px rgba(0, 0, 0, 0.25);
+    --shadow-glow: 0 0 20px rgba(122, 162, 247, 0.25);
+
+    /* Transitions & Motion */
+    --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -483,16 +497,21 @@ body {
     padding: var(--space-4) 0;
 }
 
-/* Flat Card Effect - Vercel Style */
+/* Material Card Effect - Tokyo Night Theme */
 .glass-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 0;
+    border-radius: var(--radius-lg);
     padding: var(--space-8);
     width: 100%;
     max-width: 400px;
-    transition: var(--transition-fast);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: var(--transition);
+    box-shadow: var(--shadow-md);
+}
+
+.glass-card:hover {
+    border-color: var(--border-accent);
+    box-shadow: var(--shadow-lg);
 }
 
 /* Compact info bar shown to non-logged-in users */
@@ -614,9 +633,9 @@ body {
 .form-group input {
     width: 100%;
     padding: var(--space-4);
-    background: var(--bg-secondary);
+    background: var(--bg-tertiary);
     border: 1px solid var(--border);
-    border-radius: 0;
+    border-radius: var(--radius-md);
     font-size: 0.9rem;
     color: var(--text-primary);
     transition: var(--transition-fast);
@@ -625,16 +644,17 @@ body {
 
 .form-group input:focus {
     border-color: var(--primary);
-    background: var(--bg-tertiary);
+    background: var(--bg-card-hover);
+    box-shadow: 0 0 0 3px rgba(122, 162, 247, 0.25);
 }
 
 .form-group input.invalid {
-    border-color: var(--primary);
-    background: var(--bg-tertiary);
+    border-color: var(--danger);
+    background: rgba(247, 118, 142, 0.1);
 }
 
 .form-group input::placeholder {
-    color: var(--text-tertiary);
+    color: var(--text-muted);
 }
 
 .form-group {
@@ -646,9 +666,9 @@ body {
     padding: var(--space-4);
     padding-right: 3.5rem;
     /* room for custom arrow */
-    background: var(--bg-secondary);
+    background: var(--bg-tertiary);
     border: 1px solid var(--border);
-    border-radius: 0;
+    border-radius: var(--radius-md);
     font-size: 0.9rem;
     color: var(--text-primary);
     transition: var(--transition-fast);
@@ -661,11 +681,12 @@ body {
 
 .form-group select:focus {
     border-color: var(--primary);
-    background: var(--bg-tertiary);
+    background: var(--bg-card-hover);
+    box-shadow: 0 0 0 3px rgba(122, 162, 247, 0.25);
 }
 
 .form-group select option {
-    background: var(--bg-secondary);
+    background: var(--bg-card);
     color: var(--text-primary);
 }
 
@@ -699,7 +720,7 @@ body {
     transform: translateY(-50%);
     width: 1rem;
     height: 1rem;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a9b1d6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
     background-repeat: no-repeat;
     background-size: 1rem;
 }
@@ -709,7 +730,7 @@ body {
     display: none;
 }
 
-/* Button Styles - Primary CTA (dark-mode friendly) */
+/* Button Styles - Primary CTA (Tokyo Night + Material Design) */
 .btn-primary {
     width: 100%;
     display: flex;
@@ -717,13 +738,28 @@ body {
     justify-content: center;
     gap: var(--space-2);
     padding: var(--space-4);
-    background: var(--text-primary);
-    /* white */
-    color: var(--bg-primary);
-    /* black */
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 0;
+    background: var(--primary);
+    color: #15161e;
+    border: 1px solid rgba(122, 162, 247, 0.3);
+    border-radius: var(--radius-md);
     font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+    position: relative;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+    background: var(--primary-light);
+    color: #15161e;
+    box-shadow: 0 4px 16px rgba(122, 162, 247, 0.4);
+    transform: translateY(-1px);
+}
+
+.btn-primary:active {
+    transform: scale(0.98);
+}
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition-fast);
@@ -869,17 +905,18 @@ input[type="range"]::-moz-range-thumb:hover {
 .chart-container {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 0;
+    border-radius: var(--radius-lg);
     padding: var(--space-6);
     margin-bottom: var(--space-8);
     height: 400px;
     position: relative;
-    transition: var(--transition-fast);
-    box-shadow: none;
+    transition: var(--transition);
+    box-shadow: var(--shadow-sm);
 }
 
 .chart-container:hover {
-    border-color: var(--text-secondary);
+    border-color: var(--border-accent);
+    box-shadow: var(--shadow-md);
 }
 
 /* In-chart centered message shown when no chart is present (fetching state) */
@@ -941,14 +978,15 @@ input[type="range"]::-moz-range-thumb:hover {
     overflow-x: auto;
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 0;
-    transition: var(--transition-fast);
-    box-shadow: none;
+    border-radius: var(--radius-lg);
+    transition: var(--transition);
+    box-shadow: var(--shadow-sm);
     margin-bottom: var(--space-6);
 }
 
 .table-container:hover {
-    border-color: var(--text-secondary);
+    border-color: var(--border-accent);
+    box-shadow: var(--shadow-md);
 }
 
 table {
@@ -958,7 +996,7 @@ table {
 }
 
 table th {
-    background: transparent;
+    background: var(--bg-tertiary);
     padding: var(--space-4) var(--space-6);
     font-size: 0.813rem;
     font-weight: 600;
@@ -970,11 +1008,11 @@ table th {
 }
 
 table th:first-child {
-    border-top-left-radius: var(--radius-md);
+    border-top-left-radius: var(--radius-lg);
 }
 
 table th:last-child {
-    border-top-right-radius: var(--radius-md);
+    border-top-right-radius: var(--radius-lg);
 }
 
 table td {
@@ -1011,20 +1049,20 @@ table tbody tr {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    color: #10b981;
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid rgba(16, 185, 129, 0.2);
-    padding: 0.25rem 0.5rem;
-    border-radius: 0;
-    font-weight: 500;
+    color: var(--success);
+    background: rgba(158, 206, 106, 0.15);
+    border: 1px solid rgba(158, 206, 106, 0.3);
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-full);
+    font-weight: 600;
     font-size: 0.8rem;
     transition: var(--transition-fast);
     cursor: pointer;
 }
 
 .skippable-skip:hover {
-    background: rgba(16, 185, 129, 0.2);
-    border-color: rgba(16, 185, 129, 0.4);
+    background: rgba(158, 206, 106, 0.25);
+    border-color: rgba(158, 206, 106, 0.5);
     transform: scale(1.02);
 }
 
@@ -1032,15 +1070,21 @@ table tbody tr {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    padding: 0.25rem 0.5rem;
-    border-radius: 0;
-    font-weight: 500;
+    color: var(--danger);
+    background: rgba(247, 118, 142, 0.15);
+    border: 1px solid rgba(247, 118, 142, 0.3);
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-full);
+    font-weight: 600;
     font-size: 0.8rem;
     transition: var(--transition-fast);
     cursor: pointer;
+}
+
+.skippable-need:hover {
+    background: rgba(247, 118, 142, 0.25);
+    border-color: rgba(247, 118, 142, 0.5);
+    transform: scale(1.02);
 }
 
 .skippable-need:hover {
