@@ -11,9 +11,9 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "aiohttp>=3.13.1",
     "matplotlib>=3.10.7",
-    "telebot>=0.0.5",
     "rjsmin>=1.2.5",
     "rcssmin>=1.2.2",
     "colorama>=0.4.6",
     "uvicorn>=0.40.0",
+    "mcp>=2.0.0",
 ]

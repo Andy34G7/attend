@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 """
-Main entrypoint for the PESU Attendance Tracker.
+Main entrypoint for the PESU Attendance Tracker & MCP Server.
 
 Run with environment toggles to choose which components start:
  - ENABLE_BACKEND_API: start API (defaults to true)
  - ENABLE_BACKEND_WEB: mount & serve static frontend (defaults to true)
- - ENABLE_BACKEND_TELEGRAM: launch the telegram bot as a subprocess (defaults to false)
+ - ENABLE_BACKEND_MCP: mount & serve MCP server endpoints (defaults to true)
 
 Examples:
-    # Run API and bot, but do not serve frontend
-    export ENABLE_BACKEND_WEB=false
-    export ENABLE_BACKEND_TELEGRAM=true
+    export ENABLE_BACKEND_WEB=true
     uv run main.py
 """
 import colorama
@@ -136,9 +134,11 @@ class AppSettings:
             "true",
             "yes",
         )
-        self.ENABLE_BACKEND_TELEGRAM = os.getenv(
-            "ENABLE_BACKEND_TELEGRAM", "false"
-        ).lower() in ("1", "true", "yes")
+        self.ENABLE_BACKEND_MCP = os.getenv("ENABLE_BACKEND_MCP", "true").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
 
 
 def load_mappings_config() -> MappingsConfig:
@@ -1242,40 +1242,259 @@ else:
         "Frontend static files mount disabled (ENABLE_BACKEND_WEB=false)",
     )
 
-    # Provide helpful root response when frontend static files are disabled
-    @app.get("/", include_in_schema=False)
-    async def frontend_disabled_root():
-        response_payload, status_code = APIResponse.error(
-            error_type="FeatureDisabled",
-            details="Frontend disabled. Set ENABLE_BACKEND_WEB=true to enable serving the web frontend.",
-            code="frontend_disabled",
-            status_code=404,
-        )
-        return JSONResponse(content=response_payload, status_code=status_code)
+# ============================================================================
+# MCP (MODEL CONTEXT PROTOCOL) SERVER ROUTES
+# ============================================================================
 
-    @app.get("/{full_path:path}", include_in_schema=False)
-    async def frontend_disabled_catchall(full_path: str):
-        if (
-            full_path.startswith("api")
-            or full_path.startswith("docs")
-            or full_path.startswith("openapi.json")
-            or full_path.startswith("redoc")
-        ):
-            response_payload, status_code = APIResponse.error(
-                error_type="NotFound",
-                details=f"Path '/{full_path}' not found",
-                code="not_found",
-                status_code=404,
-            )
-            return JSONResponse(content=response_payload, status_code=status_code)
+mcp_router = APIRouter()
 
-        response_payload, status_code = APIResponse.error(
-            error_type="FeatureDisabled",
-            details="Frontend disabled. Set ENABLE_BACKEND_WEB=true to enable serving the web frontend.",
-            code="frontend_disabled",
-            status_code=404,
-        )
-        return JSONResponse(content=response_payload, status_code=status_code)
+MCP_SERVER_INFO = {
+    "name": "pesu-attendance-mcp-server",
+    "version": "1.0.0",
+}
+
+MCP_TOOLS = [
+    {
+        "name": "get_attendance",
+        "description": "Fetch attendance data for a PESU student by SRN (username) and password from PESU Academy.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "username": {
+                    "type": "string",
+                    "description": "PESU SRN / Roll Number (e.g. PES2UG24CS061)",
+                },
+                "password": {
+                    "type": "string",
+                    "description": "Account password for PESU Academy",
+                },
+                "batch_id": {
+                    "type": "integer",
+                    "description": "Optional specific batch/semester ID (e.g. 3530 for Sem-5)",
+                },
+            },
+            "required": ["username", "password"],
+        },
+    },
+    {
+        "name": "get_semesters",
+        "description": "Fetch available semester batch IDs and semester names for a PESU student.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "username": {
+                    "type": "string",
+                    "description": "PESU SRN / Roll Number",
+                },
+                "password": {
+                    "type": "string",
+                    "description": "Account password for PESU Academy",
+                },
+            },
+            "required": ["username", "password"],
+        },
+    },
+    {
+        "name": "calculate_bunkable_classes",
+        "description": "Calculate how many classes a student can skip (or needs to attend) to maintain target attendance percentage.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "attended": {
+                    "type": "integer",
+                    "description": "Number of classes attended",
+                },
+                "total": {
+                    "type": "integer",
+                    "description": "Total number of classes conducted",
+                },
+                "threshold": {
+                    "type": "integer",
+                    "description": "Target attendance percentage threshold (default 75)",
+                    "default": 75,
+                },
+            },
+            "required": ["attended", "total"],
+        },
+    },
+]
+
+
+def _calc_bunkable_mcp(attended: int, total: int, threshold_pct: int = 75) -> int:
+    if total <= 0:
+        return 0
+    current_pct = (attended / total) * 100
+    if current_pct >= threshold_pct:
+        return int((attended * 100) // threshold_pct - total)
+    denom = 100 - threshold_pct
+    if denom <= 0:
+        return -(max(0, total - attended))
+    numerator = threshold_pct * total - 100 * attended
+    if numerator <= 0:
+        return 0
+    needed = (numerator + denom - 1) // denom
+    return -int(needed)
+
+
+async def execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> str:
+    if name == "get_attendance":
+        username = arguments.get("username")
+        password = arguments.get("password")
+        batch_id = arguments.get("batch_id")
+        if not username or not password:
+            return "Error: username and password are required."
+        try:
+            res = await process_attendance_task(username, password, batch_id)
+            attendance = res.get("attendance", [])
+            lines = [f"📊 Attendance for {username}:"]
+            for item in attendance:
+                subj = item.get("subject", "Unknown")
+                cname = item.get("course_name", "")
+                raw = item.get("raw_data", "N/A")
+                pct = item.get("percentage")
+
+                label = f"• {subj}"
+                if cname and cname != subj:
+                    label += f" ({cname})"
+
+                pct_str = f"{pct:.1f}%" if pct is not None else "N/A"
+
+                if "/" in str(raw):
+                    try:
+                        att, tot = map(int, str(raw).split("/"))
+                        bunkable = _calc_bunkable_mcp(att, tot, 75)
+                        if bunkable > 0:
+                            status_txt = f"Can skip {bunkable}"
+                        elif bunkable < 0:
+                            status_txt = f"Need {abs(bunkable)} more"
+                        else:
+                            status_txt = "At threshold"
+                        lines.append(f"{label}: {raw} ({pct_str} | {status_txt})")
+                    except Exception:
+                        lines.append(f"{label}: {raw} ({pct_str})")
+                else:
+                    lines.append(f"{label}: {raw}")
+
+            if "discovered_batch_ids" in res:
+                lines.append(f"\nDiscovered Batch IDs: {res['discovered_batch_ids']}")
+            return "\n".join(lines)
+        except Exception as e:
+            return f"Error fetching attendance: {e}"
+
+    elif name == "get_semesters":
+        username = arguments.get("username")
+        password = arguments.get("password")
+        if not username or not password:
+            return "Error: username and password are required."
+        try:
+            scraper = PESUAttendanceScraper(username, password)
+            try:
+                scraper.login()
+                batch_ids, texts = scraper._fetch_semester_batch_ids(
+                    scraper._prepare_profile_context()
+                )
+                if not texts:
+                    return f"No semester options found for {username}."
+                lines = [f"Available semesters for {username}:"]
+                for bid, sem_name in texts.items():
+                    lines.append(f"• {sem_name} (batch_id: {bid})")
+                return "\n".join(lines)
+            finally:
+                scraper.logout()
+        except Exception as e:
+            return f"Error fetching semesters: {e}"
+
+    elif name == "calculate_bunkable_classes":
+        attended = int(arguments.get("attended", 0))
+        total = int(arguments.get("total", 0))
+        threshold = int(arguments.get("threshold", 75))
+        bunkable = _calc_bunkable_mcp(attended, total, threshold)
+        pct = (attended / total * 100) if total > 0 else 0
+
+        if bunkable > 0:
+            return f"With {attended}/{total} classes ({pct:.1f}%), you can skip {bunkable} more classes while staying at/above {threshold}%."
+        elif bunkable < 0:
+            return f"With {attended}/{total} classes ({pct:.1f}%), you must attend {abs(bunkable)} consecutive classes to reach {threshold}%."
+        else:
+            return f"With {attended}/{total} classes ({pct:.1f}%), your attendance is exactly at {threshold}%."
+
+    else:
+        return f"Unknown tool: {name}"
+
+
+@mcp_router.get("", include_in_schema=True)
+@mcp_router.get("/", include_in_schema=True)
+async def get_mcp_info():
+    """Returns metadata and connection details for the MCP Server."""
+    return {
+        "status": "online",
+        "mcp_version": "2024-11-05",
+        "server": MCP_SERVER_INFO,
+        "tools": MCP_TOOLS,
+        "instructions": "Send JSON-RPC 2.0 requests via POST to /api/mcp or /mcp",
+    }
+
+
+@mcp_router.post("", include_in_schema=True)
+@mcp_router.post("/", include_in_schema=True)
+async def handle_mcp_jsonrpc(request: dict = Body(...)):
+    """JSON-RPC 2.0 MCP Handler over HTTP (Serverless Vercel ready)."""
+    req_id = request.get("id")
+    method = request.get("method")
+    params = request.get("params", {})
+
+    if method == "initialize":
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "result": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {"tools": {}},
+                "serverInfo": MCP_SERVER_INFO,
+            },
+        }
+
+    elif method == "notifications/initialized" or method == "ping":
+        return {"jsonrpc": "2.0", "id": req_id, "result": {}}
+
+    elif method == "tools/list":
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "result": {"tools": MCP_TOOLS},
+        }
+
+    elif method == "tools/call":
+        tool_name = params.get("name")
+        arguments = params.get("arguments", {})
+        tool_output = await execute_mcp_tool(tool_name, arguments)
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "result": {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": tool_output,
+                    }
+                ]
+            },
+        }
+
+    else:
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "error": {
+                "code": -32601,
+                "message": f"Method not found: {method}",
+            },
+        }
+
+
+if settings.ENABLE_BACKEND_MCP:
+    app.include_router(mcp_router, prefix="/api/mcp", tags=["MCP"])
+    app.include_router(mcp_router, prefix="/mcp", tags=["MCP"])
 
 
 def run(argv: list | None = None) -> None:
@@ -1285,84 +1504,13 @@ def run(argv: list | None = None) -> None:
     parser = argparse.ArgumentParser()
     args = parser.parse_args(argv)
 
-    # Start Telegram bot subprocess if enabled
-    bot_proc = None
-    try:
-        if settings.ENABLE_BACKEND_TELEGRAM:
-            telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-            if not telegram_bot_token:
-                print(
-                    "ERROR: ENABLE_BACKEND_TELEGRAM is enabled but TELEGRAM_BOT_TOKEN is not set in .env"
-                )
-                print(
-                    "Please add TELEGRAM_BOT_TOKEN to your .env file or disable the Telegram bot."
-                )
-                sys.exit(1)
-
-            tg_bot_path = (
-                Path(__file__).resolve().parent / "frontend" / "telegram" / "tg_bot.py"
-            )
-            if tg_bot_path.exists():
-                cmd = [sys.executable, str(tg_bot_path)]
-                env = os.environ.copy()
-                bot_proc = subprocess.Popen(cmd, env=env, start_new_session=True)
-
-                def _terminate_bot():
-                    try:
-                        if bot_proc and bot_proc.poll() is None:
-                            bot_proc.terminate()
-                            bot_proc.wait(timeout=5)
-                    except Exception:
-                        try:
-                            bot_proc.kill()
-                        except Exception:
-                            pass
-
-                atexit.register(_terminate_bot)
-                print(f"Started telegram bot subprocess (pid={bot_proc.pid})")
-            else:
-                print(
-                    f"Telegram bot file not found at: {tg_bot_path}, skipping bot start"
-                )
-
-        # Optionally start the web server.
-        # Set ENABLE_BACKEND_WEB=1 (or true) in the environment to enable.
-        if settings.ENABLE_BACKEND_API:
-            if settings.ENABLE_BACKEND_WEB:
-                print(f"Starting web + API server on port {settings.PORT}...")
-            else:
-                print(
-                    f"Starting API server (frontend disabled) on port {settings.PORT}..."
-                )
-            uvicorn.run(
-                "main:app", host="0.0.0.0", port=settings.PORT, reload=settings.DEBUG
-            )
-        else:
-            print("API server disabled (ENABLE_BACKEND_API set to false)")
-            if bot_proc:
-                print("Running in bot-only mode. Press Ctrl+C to exit.")
-                try:
-                    bot_proc.wait()
-                except KeyboardInterrupt:
-                    print("\nShutting down...")
-            # Keep the process alive if only running the bot
-            if bot_proc:
-                print("Running in bot-only mode. Press Ctrl+C to exit.")
-                try:
-                    bot_proc.wait()
-                except KeyboardInterrupt:
-                    print("\nShutting down...")
-    finally:
-        # Ensure subprocess is cleaned up on exit
-        if bot_proc and bot_proc.poll() is None:
-            try:
-                bot_proc.terminate()
-                bot_proc.wait(timeout=5)
-            except Exception:
-                try:
-                    bot_proc.kill()
-                except Exception:
-                    pass
+    if settings.ENABLE_BACKEND_API:
+        print(f"Starting PESU Attendance Tracker & MCP Server on port {settings.PORT}...")
+        uvicorn.run(
+            "main:app", host="0.0.0.0", port=settings.PORT, reload=settings.DEBUG
+        )
+    else:
+        print("API server disabled (ENABLE_BACKEND_API set to false)")
 
 
 if __name__ == "__main__":
