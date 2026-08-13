@@ -1,26 +1,29 @@
 {
   "outputDirectory": "frontend/web",
   "cleanUrls": true,
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/index"
+      "src": "/api/(.*)",
+      "dest": "/api/index.py"
     },
     {
-      "source": "/api",
-      "destination": "/api/index"
+      "src": "/api",
+      "dest": "/api/index.py"
     },
     {
-      "source": "/mcp/(.*)",
-      "destination": "/api/index"
+      "src": "/mcp/(.*)",
+      "dest": "/api/index.py"
     },
     {
-      "source": "/mcp",
-      "destination": "/api/index"
+      "src": "/mcp",
+      "dest": "/api/index.py"
     },
     {
-      "source": "/healthcheck",
-      "destination": "/api/index"
+      "src": "/healthcheck",
+      "dest": "/api/index.py"
+    },
+    {
+      "handle": "filesystem"
     }
   ],
   "functions": {

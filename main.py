@@ -14,7 +14,7 @@ Examples:
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, quote, urlencode
-from fastapi import FastAPI, APIRouter, HTTPException, status, Body
+from fastapi import FastAPI, APIRouter, HTTPException, status, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
@@ -1085,13 +1085,25 @@ async def healthcheck() -> Dict[str, Any]:
     )
 
 
-@router.post("/attendance")
-async def get_attendance(request: dict = Body(...)) -> dict:
+async def _extract_request_data(request: Request) -> dict:
+    if request.method == "POST":
+        try:
+            data = await request.json()
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+        return {}
+    return dict(request.query_params)
+
+
+@router.api_route("/attendance", methods=["GET", "POST"])
+async def get_attendance(request: Request) -> dict:
     try:
-        # Process attendance data
-        username = request.get("username")
-        password = request.get("password")
-        batch_id = request.get("batch_id")
+        req_data = await _extract_request_data(request)
+        username = req_data.get("username")
+        password = req_data.get("password")
+        batch_id = req_data.get("batch_id")
         if not username or not password:
             response, status_code = APIResponse.error(
                 error_type="ValidationError",
@@ -1150,11 +1162,12 @@ async def get_attendance(request: dict = Body(...)) -> dict:
         return JSONResponse(content=response, status_code=status_code)
 
 
-@router.post("/semesters", include_in_schema=True)
-async def get_semesters(request: dict = Body(...)) -> dict:
+@router.api_route("/semesters", methods=["GET", "POST"], include_in_schema=True)
+async def get_semesters(request: Request) -> dict:
     try:
-        username = request.get("username")
-        password = request.get("password")
+        req_data = await _extract_request_data(request)
+        username = req_data.get("username")
+        password = req_data.get("password")
         if not username or not password:
             response, status_code = APIResponse.error(
                 error_type="ValidationError",
@@ -1192,7 +1205,7 @@ async def get_semesters(request: dict = Body(...)) -> dict:
     except Exception as e:
         app_log(
             "semester.fetch_error",
-            f"Error fetching semesters for {username}: {e}",
+            f"Error fetching semesters: {e}",
             "error",
         )
         response, status_code = APIResponse.error(
